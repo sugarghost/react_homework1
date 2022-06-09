@@ -2,6 +2,7 @@ import { firestore } from "../../firebase";
 // 기능을 호출 할때, 단순히 텍스트를 입력하면 안되고, 엔터로 자동완성에서 선택하면 되는 경우가 있음
 // 단순히 import를 안해서 발생하는 문제인듯 함, 자동완성에서는 import가 안되도 예측되는 기능을 소개해주는 것
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc, orderBy, query, startAfter, limit} from "firebase/firestore";
+import {createReducer} from "@reduxjs/toolkit"
 
 const LOAD = "dictionary/LOAD";
 const CLEAR = "dictionary/CLEAR";
@@ -11,19 +12,20 @@ const UPDATE = "dictionary/UPDATE";
 
 const initailState = {
   list: [
-    { id: "1", word: "안녕하세요", desc: "설명입니다", example: "예시입니다" },
     {
-      id: "2",
-      word: "안녕하세요1",
-      desc: "설명입니다1",
-      example: "예시입니다",
-    },
-    {
-      id: "3",
-      word: "안녕하세요2",
-      desc: "설명입니다2",
+      id: "33333333333",
+      word: "초기데이터3",
+      desc: "샘플데이터3",
       example: "예시입니다1",
     },
+    {
+      id: "22222222222",
+      word: "초기데이터2",
+      desc: "샘플입니다2",
+      example: "예시입니다",
+    },
+    
+    { id: "11111111111", word: "초기데이터1", desc: "샘플입니다", example: "예시입니다" },
   ],
 };
 
@@ -69,10 +71,11 @@ export const deleteDictionary = (id) => {
   };
 };
 
-export const updateDictionary = (id) => {
+export const updateDictionary = (id, dictionary) => {
   return {
     type: UPDATE,
     id,
+    dictionary,
   };
 };
 
@@ -91,7 +94,6 @@ export const loadDictionaryFB = (lastVisible, limitCount) => {
       query_string = query(dictionary_db, orderBy("timestamp", "desc"), limit(limitCount));
     }
     getDocs(query_string).then((query) => {
-      console.log('query.docs.length', query.docs.length)
       if (query.docs.length < limitCount) {
         lastVisible = -1;
       } else {
@@ -111,40 +113,58 @@ export const loadDictionaryFB = (lastVisible, limitCount) => {
   };
 };
 
-export const createDictionaryFB = (dictionary) => {
+export const createDictionaryFB = (dictionary, word_type) => {
   return function (dispatch) {
     let dictionary_data = dictionary;
-    
-    // addDoc는 ID를 자체적으로 넣어줌, 별도 id를 지정하고 싶다면 setDoc 사용
-    // 딕셔너리 타입은 {}로 안묵고 그대로 주면 ID를 맞춰서 잘 넣어줌
-    addDoc(dictionary_db,
-      dictionary_data
-    )
-    .then((docRef) => {
-      dictionary_data = { ...dictionary_data, id: docRef.id };
-    })
-    .catch((err) => {
-      alert("create err");
-    });
+    if (word_type) {
+      // addDoc는 ID를 자체적으로 넣어줌, 별도 id를 지정하고 싶다면 setDoc 사용
+      // 딕셔너리 타입은 {}로 안묵고 그대로 주면 ID를 맞춰서 잘 넣어줌
+      addDoc(dictionary_db,
+        dictionary_data
+      )
+      .then((docRef) => {
+        dictionary_data = { ...dictionary_data, id: docRef.id };
+        dispatch(createDictionary(dictionary_data))
+      })
+      .catch((err) => {
+        alert("create err");
+      });
+    } else {
+      dictionary_data = { ...dictionary_data, id: dictionary_data.timestamp.getTime() };
+      dispatch(createDictionary(dictionary_data))
+    }
+
   };
 };
 
 // 수정, 삭제 기능 사용시 파이어베이스에서 자체적으로 ID를 만든 경우는 업데이트 및 삭제됨
 // 하지만 단순 텍스트나 숫자를 id로 넣은 경우 업데이트 및 삭제가 안됨
-export const deleteBucketFB = (id) => {
+export const deleteBucketFB = (id, word_type) => {
   return function (dispatch) {
+    if (word_type) {
     deleteDoc(doc(firestore, 'dictionary', id))
     .then((res) => {
       dispatch(deleteDictionary(id));
     });
+    } else {
+      dispatch(deleteDictionary(id));
+    }
   };
 };
-export const updateBucketFB = (id, dictionary) => {
+export const updateBucketFB = (id, dictionary, word_type) => {
   return function (dispatch) {
+    if (word_type) {
     updateDoc(doc(firestore, 'dictionary', id), dictionary)
+    .then((res) => {
+      dispatch(updateDictionary(id, dictionary));
+    });
+    } else {
+      dispatch(updateDictionary(id, dictionary));
+    }
   };
 };
 // 렌더시에 조회된 데이터가 없으면 sample 데이터(목업 api)를 제공
+/* 기존 리듀서 방식을 비활성화 하고 toolkit으로 대체
 const reducer = (state = initailState, action) => {
   switch (action.type) {
     case LOAD: {
@@ -174,5 +194,41 @@ const reducer = (state = initailState, action) => {
       return state;
   }
 };
+*/
+const reducer = createReducer(initailState,{
+  [LOAD]: (state, action) => {
+    if (action.dictionary.length > 0) {
+      const add_list = [...state.list, ...action.dictionary];
+      return { list: add_list, lastDoc: action.lastDoc };
+    }
+    return state;
+  },
+  
+  [CLEAR]: (state, action) => {
+    return {list: [] };
+  },
+  [CREATE]: (state, action) => {
+    const new_list = [action.dictionary, ...state.list];
+    return {list: new_list };
+  },
+  [DELETE]: (state, action) => {
+    const new_list = state.list.filter(({ id }) => {
+    return id !== action.id;
+    });
+
+    return {
+      list: new_list,
+    };
+  },
+  [UPDATE]: (state, action) => {
+    const new_list = state.list.map((word) => 
+      word.id === action.id ? action.dictionary : word
+    );
+    
+    return {
+      list: new_list,
+    };
+  }
+})
 
 export default reducer;

@@ -45,11 +45,12 @@ const AddWord = () => {
 
     if (params.type === "update") {
       let id = location.state.selected_word.id;
-      dispatch(updateBucketFB(id, new_list_state));
+      let word_type = location.state.word_type;
+      dispatch(updateBucketFB(id, new_list_state, word_type));
     } else {
       dispatch(createDictionaryFB(new_list_state));
     }
-    navigate(-1);
+    navigate("/");
   };
 
   return (

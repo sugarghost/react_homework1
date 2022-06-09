@@ -1,31 +1,35 @@
-import React, {useState, useEffect} from "react";
+import React, {useState} from "react";
 // mui에 styled를 사용하기 위해 비활성화
 //import styled from "styled-components";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 // meterial 버전을 5로올리면서 기존 버전 사용은 비활성화
 // import { Button, ButtonGroup } from "@material-ui/core";
-import { loadDictionaryFB, deleteBucketFB } from "./redux/module/dictionary";
+import { loadDictionaryFB, deleteBucketFB} from "./redux/module/dictionary";
 // v6 이후로 History대신 Navigate를 사용
 import { useNavigate } from "react-router-dom";
 import {Button, ButtonGroup, Box, Card, CardContent, Typography} from '@mui/material';
 import AddBoxIcon from '@mui/icons-material/AddBox';
 import styled from '@emotion/styled';
-import { useInView } from "react-intersection-observer"
+
+// 무한 스크롤을 이용하고자 했으나 동기 처리 버그 생겨서 일단 버튼으로 대체
+// import { useInView } from "react-intersection-observer"
 
 let limitCount = 5;
 
-const MyDictionary = (props) => {
+const MyDictionary = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const dic_list = useSelector((state) => state.dictionary.list);
   // 무한 스크롤을 위해서 다음에 데이터를 가져오는 startAfter 기준을 잡기 위한 변수
   const lastVisible = useSelector((state) => state.dictionary.lastDoc);
+  const word_type = lastVisible == null ? false: true
+  console.log(word_type)
   // 무한 스크롤을 위해 로딩 상태를 정의
   const [loading, setLoading] = useState(false);
 
   const deleteWord = (id) => {
-    dispatch(deleteBucketFB(id));
+    dispatch(deleteBucketFB(id, word_type));
   };
   // const loadWords = useCallback((lastVisible, limitCount) => dispatch(loadDictionaryFB(lastVisible, limitCount)), [dispatch]);
   const reload = () => {
@@ -33,11 +37,6 @@ const MyDictionary = (props) => {
     dispatch(loadDictionaryFB(lastVisible, limitCount));
     setLoading(false)
   }
-
-  
-  useEffect(() => {
-    dispatch(loadDictionaryFB(lastVisible, limitCount));
-  }, []);
 
   const updateWord = (selected_id) => {
     const selected_word = dic_list.find(({ id }) => {
@@ -48,6 +47,7 @@ const MyDictionary = (props) => {
     navigate('/word/update', {
       state: {
         selected_word: selected_word,
+        word_type: word_type
       },
     });
   };
@@ -99,7 +99,7 @@ const MyDictionary = (props) => {
       )}
       { loading ? (
         <p>로딩중...</p>
-      ) : lastVisible > 0 || lastVisible == undefined? (
+      ) : lastVisible > 0 || lastVisible === undefined? (
         <Button variant="contained" onClick={() => reload()}>불러오기</Button>      
       ) : (
         <p>더이상 데이터가 없습니다.</p>

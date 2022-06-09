@@ -21,11 +21,13 @@ jobs:
             ${{ runner.OS }}-
 
       - name: Install Dependencies    # 의존 파일 설치
-        run: npm install
+        run: yarn install
 
       - name: Build                   # React Build
-        run: npm run build
-
+        env:
+          CI: ""
+        run: yarn build
+        
       - name: Deploy                  # S3에 배포하기
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -34,4 +36,4 @@ jobs:
           aws s3 cp \
             --recursive \
             --region ap-northeast-2 \
-            build s3://react_homework1 # 자신의 레포지토리로 변경해주세요.
+            build s3://sparta-yoony-react
